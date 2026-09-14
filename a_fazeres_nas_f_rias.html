@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A Fazeres nas Férias</title>
+    <!-- Configuração para PWA (App no celular) -->
+    <meta name="theme-color" content="#050505">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22A%22,%22short_name%22:%22Férias%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%23050505%22,%22theme_color%22:%22%23050505%22}">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050505;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .content-layer {
+            position: relative;
+            z-index: 10;
+        }
+        /* Custom Glassmorphism for Dark Mode */
+        .glass-card {
+            background: rgba(18, 18, 22, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+        .glass-header {
+            background: rgba(12, 12, 15, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-ai {
+            animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        /* Garantir modo escuro real em inputs de data, cor e select */
+        input[type="date"] {
+            color-scheme: dark;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) hue-rotate(180deg);
+            opacity: 0.7;
+            cursor: pointer;
+            padding: 4px;
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            background: transparent;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem;
+        }
+        select {
+            background-color: #121216 !important;
+            color: #f3f4f6 !important;
+        }
+        select option {
+            background-color: #121216 !important;
+            color: #f3f4f6 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+    <canvas id="bgCanvas"></canvas>
+
+    <header class="glass-header sticky top-0 z-30 px-4 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-lg">
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            <h1 class="text-base font-medium tracking-tight text-white/90">A Fazeres nas Férias</h1>
+            <div id="sync-status" class="flex sm:hidden items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/5 text-[11px] text-white/50">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="sync-dot-mobile"></span>
+                <span id="sync-text-mobile">Sincronizando</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
+            <button onclick="window.openAiIdeasModal()" class="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-indigo-600/20 hover:from-purple-500/30 hover:to-indigo-600/30 border border-purple-400/30 text-purple-200 text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg shadow-purple-950/20 active:scale-95 touch-manipulation">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                <span class="hidden xs:inline">Ideias IA</span>
+            </button>
+
+            <button onclick="window.openSettingsModal()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm font-medium transition-all flex items-center justify-center touch-manipulation" title="Configurações & Tags">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1.15 1.74l-.37.18a2 2 0 0 1-2.64-.83l-.22-.38a2 2 0 0 0-2.73-.73l-.22.14a2 2 0 0 0-.64 2.73l.18.37a2 2 0 0 1 0 2.3l-.18.37a2 2 0 0 0 .64 2.73l.22.14a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 1 2.64-.83l.37.18a2 2 0 0 1 1.15 1.74V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1.15-1.74l.37-.18a2 2 0 0 1 2.64.83l.22.38a2 2 0 0 0 2.73.73l.22-.14a2 2 0 0 0 .64-2.73l-.18-.37a2 2 0 0 1 0-2.3l.18-.37a2 2 0 0 0-.64-2.73l-.22-.14a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 1-2.64.83l-.37-.18a2 2 0 0 1-1.15-1.74V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+
+            <div id="sync-status-desktop" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5 text-xs text-white/50">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="sync-dot"></span>
+                <span id="sync-text">Conectando...</span>
+            </div>
+            
+            <button onclick="window.openTaskModal(null)" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-600/20 hover:from-sky-500/30 hover:to-blue-600/30 border border-sky-400/30 text-sky-200 text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg shadow-sky-950/20 active:scale-95 touch-manipulation">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Nova Tarefa
+            </button>
+        </div>
+    </header>
+
+    <main class="content-layer flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col">
+        <!-- Contêiner Kanban com scroll horizontal nativo no celular e grid em telas maiores -->
+        <div class="flex md:grid md:grid-cols-3 gap-4 sm:gap-6 flex-1 items-start overflow-x-auto pb-4 pt-1 snap-x snap-mandatory">
+            
+            <!-- Coluna: A Fazer -->
+            <div class="glass-card rounded-3xl p-3.5 sm:p-4 flex flex-col h-[75vh] md:h-[calc(100vh-160px)] min-h-[380px] min-w-[280px] sm:min-w-[320px] md:min-w-0 snap-center flex-shrink-0">
+                <div class="flex justify-between items-center px-2 pb-3 mb-2 border-b border-white/5">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-sky-400"></div>
+                        <h2 class="text-sm font-medium uppercase tracking-wider text-white/80">A Fazer</h2>
+                    </div>
+                    <span id="count-todo" class="px-2.5 py-0.5 rounded-full bg-white/5 text-xs text-white/60 font-mono">0</span>
+                </div>
+                <div id="column-todo" class="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 min-h-[100px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'todo')"></div>
+            </div>
+
+            <!-- Coluna: Em Andamento -->
+            <div class="glass-card rounded-3xl p-3.5 sm:p-4 flex flex-col h-[75vh] md:h-[calc(100vh-160px)] min-h-[380px] min-w-[280px] sm:min-w-[320px] md:min-w-0 snap-center flex-shrink-0">
+                <div class="flex justify-between items-center px-2 pb-3 mb-2 border-b border-white/5">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+                        <h2 class="text-sm font-medium uppercase tracking-wider text-white/80">Em Andamento</h2>
+                    </div>
+                    <span id="count-in-progress" class="px-2.5 py-0.5 rounded-full bg-white/5 text-xs text-white/60 font-mono">0</span>
+                </div>
+                <div id="column-in-progress" class="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 min-h-[100px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'in-progress')"></div>
+            </div>
+
+            <!-- Coluna: Feito -->
+            <div class="glass-card rounded-3xl p-3.5 sm:p-4 flex flex-col h-[75vh] md:h-[calc(100vh-160px)] min-h-[380px] min-w-[280px] sm:min-w-[320px] md:min-w-0 snap-center flex-shrink-0">
+                <div class="flex justify-between items-center px-2 pb-3 mb-2 border-b border-white/5">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+                        <h2 class="text-sm font-medium uppercase tracking-wider text-white/80">Feito</h2>
+                    </div>
+                    <span id="count-done" class="px-2.5 py-0.5 rounded-full bg-white/5 text-xs text-white/60 font-mono">0</span>
+                </div>
+                <div id="column-done" class="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 min-h-[100px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'done')"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="task-modal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden items-center justify-center p-3 sm:p-4" onclick="window.handleModalBackdropClick(event)">
+        <div id="task-modal-content" class="glass-card w-full max-w-lg rounded-3xl p-4 sm:p-6 flex flex-col gap-4 transform scale-95 opacity-0 transition-all duration-200 shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto">
+            
+            <!-- Cabeçalho do Modal -->
+            <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                <h2 id="modal-header-title" class="text-base sm:text-lg font-medium text-white tracking-wide truncate pr-2">Detalhes da Tarefa</h2>
+                <button onclick="window.attemptCloseModal()" class="text-white/50 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 touch-manipulation flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <!-- Título e Descrição (Modo Fixo ou Inline Editável) -->
+            <div class="flex flex-col gap-3">
+                <!-- Título -->
+                <div class="flex flex-col">
+                    <div id="modal-title-view" class="text-white text-base sm:text-lg font-medium break-words hidden"></div>
+                    <input type="text" id="modal-task-title" class="w-full rounded-xl bg-black/30 border border-white/10 px-3.5 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-sky-400/50 text-base font-medium transition-all" placeholder="Título da tarefa...">
+                </div>
+
+                <!-- Descrição -->
+                <div class="flex flex-col">
+                    <div id="modal-desc-view" class="text-white/70 text-sm whitespace-pre-wrap break-words min-h-[30px] rounded-xl px-3.5 py-2.5 hidden"></div>
+                    <textarea id="modal-task-desc" rows="3" class="w-full rounded-xl bg-black/30 border border-white/10 px-3.5 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-sky-400/50 text-sm transition-all resize-none" placeholder="Adicione detalhes, links ou horários..."></textarea>
+                </div>
+            </div>
+
+            <!-- Data e Tag -->
+            <div class="flex flex-wrap items-center gap-3 pt-1 border-t border-white/5">
+                <div class="flex items-center gap-1.5 bg-black/20 px-3 py-2 rounded-xl border border-white/5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white/40"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <input type="date" id="modal-task-date" class="bg-transparent border-none text-xs text-white/80 focus:outline-none cursor-pointer" title="Data opcional do card">
+                </div>
+
+                <div class="flex items-center gap-1.5 ml-auto">
+                    <span class="text-xs text-white/40">Tag:</span>
+                    <select id="modal-task-tag" class="rounded-xl bg-[#121216] border border-white/10 px-3 py-2 text-xs text-white/80 focus:outline-none focus:border-sky-400/50">
+                        <option value="">Nenhuma</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- IA Assistente para checklist -->
+            <div id="ai-generate-container" class="flex items-center justify-between bg-gradient-to-r from-purple-950/40 to-indigo-950/40 p-3 rounded-2xl border border-purple-500/25">
+                <div class="flex items-center gap-2.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-400 animate-ai"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                    <span class="text-xs text-purple-200 font-medium">Dividir em etapas com IA</span>
+                </div>
+                <button onclick="window.generateAiChecklist()" id="ai-btn-generate" class="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 border border-purple-400/30 text-purple-200 text-xs font-medium transition-colors touch-manipulation">Gerar Passos</button>
+            </div>
+
+            <!-- Seção de Checklist -->
+            <div class="flex flex-col gap-2 pt-2 border-t border-white/5">
+                <label class="text-white/70 text-xs font-medium uppercase tracking-wider">Checklist (Etapas)</label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="modal-task-check-input" class="flex-1 rounded-xl bg-black/30 border border-white/10 px-3.5 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-sky-400/50 text-sm" placeholder="Nova etapa..." onkeypress="if(event.key === 'Enter') window.addChecklistItem()">
+                    <div class="flex gap-2">
+                        <div class="flex items-center gap-1 bg-black/30 border border-white/10 px-2.5 py-2 rounded-xl">
+                            <input type="date" id="modal-task-check-date" class="bg-transparent border-none text-[11px] text-white/70 focus:outline-none cursor-pointer w-24" title="Data opcional para a etapa">
+                        </div>
+                        <button onclick="window.addChecklistItem()" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-white transition-colors text-sm font-medium flex items-center justify-center touch-manipulation">Adicionar</button>
+                    </div>
+                </div>
+                <div id="modal-checklist-container" class="flex flex-col gap-2 mt-1 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Rodapé de Ações -->
+            <div class="flex justify-between items-center gap-3 mt-2 pt-3 border-t border-white/5">
+                <button onclick="window.attemptCloseModal()" class="px-4 py-2.5 rounded-xl bg-transparent hover:bg-white/5 text-white/70 transition-colors text-sm touch-manipulation">Fechar</button>
+                <div class="flex items-center gap-2" id="modal-action-btn-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden items-center justify-center p-3 sm:p-4">
+        <div class="glass-card w-full max-w-md rounded-3xl p-5 sm:p-6 flex flex-col gap-5 shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                <h3 class="text-lg font-medium text-white tracking-wide">Configurações & Tags</h3>
+                <button onclick="window.closeSettingsModal()" class="text-white/50 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 touch-manipulation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <label class="text-white/70 text-xs font-medium uppercase tracking-wider">Adicionar Nova Tag</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="new-tag-name" class="flex-1 rounded-xl bg-black/30 border border-white/10 px-3.5 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-sky-400/50 text-sm" placeholder="Nome da tag...">
+                    <div class="relative flex items-center justify-center w-11 h-11 rounded-xl bg-black/30 border border-white/10 overflow-hidden flex-shrink-0">
+                        <input type="color" id="new-tag-color" value="#38bdf8" title="Escolher Cor da Tag" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        <div id="color-preview" class="w-6 h-6 rounded-lg bg-sky-400 pointer-events-none shadow-sm"></div>
+                    </div>
+                    <button onclick="window.addNewTag()" class="px-4 py-2.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/40 border border-sky-400/30 text-sky-100 text-sm font-medium transition-colors touch-manipulation">Criar</button>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2 border-t border-white/5">
+                <label class="text-white/70 text-xs font-medium uppercase tracking-wider">Tags Existentes</label>
+                <div id="settings-tags-list" class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1"></div>
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2 border-t border-white/5">
+                <label class="text-white/70 text-xs font-medium uppercase tracking-wider">Outras Ações Úteis</label>
+                <button onclick="window.exportData()" class="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-sm font-medium transition-all flex items-center justify-center gap-2 touch-manipulation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Exportar Backup dos Dados (.json)
+                </button>
+                <button onclick="window.clearCompletedTasks()" class="w-full py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-200 text-sm font-medium transition-all flex items-center justify-center gap-2 touch-manipulation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    Limpar Tarefas Concluídas
+                </button>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t border-white/5">
+                <button onclick="window.closeSettingsModal()" class="px-5 py-2.5 rounded-xl bg-transparent hover:bg-white/5 text-white/70 transition-colors text-sm touch-manipulation">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ai-ideas-modal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 hidden items-center justify-center p-3 sm:p-4">
+        <div class="glass-card w-full max-w-xl rounded-3xl p-5 sm:p-6 flex flex-col gap-5 shadow-2xl border border-purple-500/25 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-400"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                    <h3 class="text-lg font-medium text-white tracking-wide">Assistente de Férias IA</h3>
+                </div>
+                <button onclick="window.closeAiIdeasModal()" class="text-white/50 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5 touch-manipulation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <label class="text-white/70 text-xs font-medium uppercase tracking-wider">Qual o destino ou estilo das suas férias?</label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="ai-prompt-input" class="flex-1 rounded-xl bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-purple-400/50 text-sm" placeholder="Ex: Viagem de 7 dias para a praia relaxar..." onkeypress="if(event.key === 'Enter') window.fetchAiSuggestions()">
+                    <button onclick="window.fetchAiSuggestions()" id="ai-suggest-btn" class="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-indigo-600/20 hover:from-purple-500/40 hover:to-indigo-600/40 border border-purple-400/30 text-purple-200 text-sm font-medium transition-all shadow-lg touch-manipulation">Sugerir</button>
+                </div>
+            </div>
+
+            <div id="ai-results-container" class="flex flex-col gap-2.5 max-h-[350px] overflow-y-auto pr-1">
+                <div class="text-center py-8 text-white/40 text-sm">
+                    Digite acima o que você planeja para receber ideias incríveis de tarefas estruturadas!
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t border-white/5">
+                <button onclick="window.closeAiIdeasModal()" class="px-5 py-2.5 rounded-xl bg-transparent hover:bg-white/5 text-white/70 transition-colors text-sm touch-manipulation">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Atualizar preview visual da cor selecionada nas configurações
+        const colorInputEl = document.getElementById('new-tag-color');
+        const colorPreviewEl = document.getElementById('color-preview');
+        if (colorInputEl && colorPreviewEl) {
+            colorInputEl.addEventListener('input', (e) => {
+                colorPreviewEl.style.backgroundColor = e.target.value;
+            });
+        }
+
+        // --- Animação de Fundo Calmante com Canvas ---
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class LightOrb {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.radius = Math.random() * 250 + 150;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.color = Math.random() > 0.5 ? 'rgba(14, 116, 144, 0.12)' : 'rgba(30, 58, 138, 0.15)';
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < -this.radius || this.x > width + this.radius || this.y < -this.radius || this.y > height + this.radius) {
+                    this.reset();
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, 'rgba(5, 5, 5, 0)');
+                ctx.fillStyle = gradient;
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        for (let i = 0; i < 6; i++) {
+            particles.push(new LightOrb());
+        }
+
+        function animateCanvas() {
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateCanvas);
+        }
+        animateCanvas();
+
+        // --- Lógica do Kanban, Tags e Firestore ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ferias-app-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let db, auth;
+        let userId = null;
+        let isCloudEnabled = false;
+        let tasks = [];
+        let tags = [
+            { id: 't1', name: 'Naumteria', color: '#eab308' }, // Amarelo
+            { id: 't2', name: 'Casa', color: '#3b82f6' },      // Azul
+            { id: 't3', name: 'Médico', color: '#22c55e' }     // Verde
+        ];
+
+        const columns = {
+            'todo': document.getElementById('column-todo'),
+            'in-progress': document.getElementById('column-in-progress'),
+            'done': document.getElementById('column-done')
+        };
+
+        const counts = {
+            'todo': document.getElementById('count-todo'),
+            'in-progress': document.getElementById('count-in-progress'),
+            'done': document.getElementById('count-done')
+        };
+
+        let tasksCollection = null;
+        let tagsCollection = null;
+
+        function updateSyncStatusUI(status, text) {
+            const dot = document.getElementById('sync-dot');
+            const dotMob = document.getElementById('sync-dot-mobile');
+            const txt = document.getElementById('sync-text');
+            const txtMob = document.getElementById('sync-text-mobile');
+
+            if (status === 'online') {
+                if(dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                if(dotMob) dotMob.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                if(txt) txt.innerText = text;
+                if(txtMob) txtMob.innerText = text;
+            } else {
+                if(dot) dot.className = 'w-2 h-2 rounded-full bg-sky-400';
+                if(dotMob) dotMob.className = 'w-2 h-2 rounded-full bg-sky-400';
+                if(txt) txt.innerText = text;
+                if(txtMob) txtMob.innerText = text;
+            }
+        }
+
+        async function initFirebase() {
+            if (!firebaseConfig) return;
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isCloudEnabled = true;
+                        updateSyncStatusUI('online', 'Salvo na nuvem');
+                        
+                        tasksCollection = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+                        tagsCollection = collection(db, 'artifacts', appId, 'users', userId, 'tags');
+                        setupRealtimeSync();
+                    }
+                });
+            } catch (e) {
+                console.warn("Modo offline local ativado:", e);
+                loadLocalFallback();
+            }
+        }
+
+        function setupRealtimeSync() {
+            if (!isCloudEnabled || !tasksCollection) return;
+            
+            onSnapshot(tasksCollection, (snapshot) => {
+                tasks = [];
+                snapshot.forEach(docSnap => {
+                    tasks.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderBoard();
+            }, (error) => {
+                console.error("Erro na sincronização de tarefas:", error);
+            });
+
+            onSnapshot(tagsCollection, (snapshot) => {
+                if (!snapshot.empty) {
+                    tags = [];
+                    snapshot.forEach(docSnap => {
+                        tags.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                }
+                updateTagDropdowns();
+                renderTagsSettingsList();
+                renderBoard();
+            }, (error) => {
+                console.error("Erro na sincronização de tags:", error);
+            });
+        }
+
+        function loadLocalFallback() {
+            updateSyncStatusUI('local', 'Modo Local');
+            
+            const savedTasks = localStorage.getItem('ferias_tasks_local');
+            if (savedTasks) {
+                try { tasks = JSON.parse(savedTasks); } catch(e) { tasks = []; }
+            } else {
+                tasks = [
+                    { id: 't-1', text: 'Comprar passagens aéreas', description: 'Verificar voos diretos e com melhor custo-benefício.', dueDate: '2026-07-01', tag: 'Naumteria', status: 'todo', checklist: [{ text: 'Pesquisar datas', dueDate: '2026-06-25', completed: true }, { text: 'Efetuar pagamento', dueDate: '2026-06-28', completed: false }] },
+                    { id: 't-2', text: 'Consulta de rotina', description: 'Levar exames recentes.', dueDate: '2026-06-20', tag: 'Médico', status: 'in-progress', checklist: [] }
+                ];
+            }
+
+            const savedTags = localStorage.getItem('ferias_tags_local');
+            if (savedTags) {
+                try { tags = JSON.parse(savedTags); } catch(e) {}
+            }
+
+            updateTagDropdowns();
+            renderTagsSettingsList();
+            renderBoard();
+        }
+
+        function saveLocalFallback() {
+            if (!isCloudEnabled) {
+                localStorage.setItem('ferias_tasks_local', JSON.stringify(tasks));
+                localStorage.setItem('ferias_tags_local', JSON.stringify(tags));
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateString;
+        }
+
+        function getTagObject(tagName) {
+            if (!tagName) return null;
+            return tags.find(t => t.name === tagName) || null;
+        }
+
+        function updateTagDropdowns() {
+            const select = document.getElementById('modal-task-tag');
+            if (!select) return;
+            
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">Nenhuma</option>';
+            tags.forEach(tag => {
+                const opt = document.createElement('option');
+                opt.value = tag.name;
+                opt.innerText = tag.name;
+                select.appendChild(opt);
+            });
+            select.value = currentVal;
+        }
+
+        // --- Renderização do Kanban ---
+        function renderBoard() {
+            columns['todo'].innerHTML = '';
+            columns['in-progress'].innerHTML = '';
+            columns['done'].innerHTML = '';
+
+            let countMap = { 'todo': 0, 'in-progress': 0, 'done': 0 };
+
+            tasks.forEach(task => {
+                countMap[task.status]++;
+                
+                const card = document.createElement('div');
+                let tagHtml = '';
+                let borderColorStyle = 'rgba(255, 255, 255, 0.07)';
+                
+                if (task.tag) {
+                    const tagObj = getTagObject(task.tag);
+                    if (tagObj) {
+                        borderColorStyle = `${tagObj.color}80`;
+                        tagHtml = `
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-medium w-fit" style="background-color: ${tagObj.color}25; color: ${tagObj.color}; border: 1px solid ${tagObj.color}40;">
+                                ${tagObj.name}
+                            </span>
+                        `;
+                    }
+                }
+
+                card.className = `glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2.5 group mb-3 relative cursor-pointer hover:border-sky-500/30 transition-all shadow-sm`;
+                card.style.border = `1px solid ${borderColorStyle}`;
+                card.id = task.id;
+                card.draggable = true;
+                
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('button') || e.target.closest('input')) return;
+                    window.openTaskModal(task.id);
+                });
+
+                const textStyle = task.status === 'done' ? 'line-through text-white/50' : 'text-white/90';
+                
+                let dateHtml = '';
+                if (task.dueDate) {
+                    dateHtml = `
+                        <div class="flex items-center gap-1.5 text-xs text-sky-300/80 font-mono mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            <span>${formatDate(task.dueDate)}</span>
+                        </div>
+                    `;
+                }
+
+                let checklistHtml = '';
+                if (task.checklist && task.checklist.length > 0) {
+                    const completed = task.checklist.filter(i => i.completed).length;
+                    const total = task.checklist.length;
+                    checklistHtml = `
+                        <div class="flex items-center gap-2 mt-1">
+                            <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div class="h-full bg-sky-400/80 rounded-full transition-all duration-300" style="width: ${(completed/total)*100}%"></div>
+                            </div>
+                            <span class="text-xs text-white/50">${completed}/${total}</span>
+                        </div>
+                    `;
+                }
+
+                let descHtml = task.description ? `<p class="text-xs text-white/50 line-clamp-2 mt-0.5">${task.description}</p>` : '';
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="flex flex-col gap-1.5 flex-1">
+                            ${tagHtml}
+                            <span class="text-sm font-medium ${textStyle} break-words">${task.text}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="window.deleteTask('${task.id}')" class="text-white/40 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-white/5 touch-manipulation" title="Remover">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                    </div>
+                    ${dateHtml}
+                    ${descHtml}
+                    ${checklistHtml}
+                `;
+                
+                columns[task.status].appendChild(card);
+            });
+
+            counts['todo'].innerText = countMap['todo'];
+            counts['in-progress'].innerText = countMap['in-progress'];
+            counts['done'].innerText = countMap['done'];
+        }
+
+        // --- Drag and Drop ---
+        let draggedTaskId = null;
+
+        window.handleDragStart = function(e) {
+            draggedTaskId = e.currentTarget.id;
+            e.currentTarget.classList.add('opacity-40', 'scale-95');
+        };
+
+        window.handleDragEnd = function(e) {
+            e.currentTarget.classList.remove('opacity-40', 'scale-95');
+            document.querySelectorAll('[ondragover]').forEach(el => el.classList.remove('bg-white/5'));
+        };
+
+        window.handleDragOver = function(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('bg-white/5');
+        };
+
+        window.handleDragLeave = function(e) {
+            e.currentTarget.classList.remove('bg-white/5');
+        };
+
+        window.handleDrop = async function(e, newStatus) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('bg-white/5');
+            if (!draggedTaskId) return;
+
+            const task = tasks.find(t => t.id === draggedTaskId);
+            if (task && task.status !== newStatus) {
+                task.status = newStatus;
+                if (isCloudEnabled && userId) {
+                    try {
+                        await updateDoc(doc(tasksCollection, draggedTaskId), { status: newStatus });
+                    } catch (err) {
+                        console.error("Erro ao atualizar status:", err);
+                    }
+                } else {
+                    saveLocalFallback();
+                }
+                renderBoard();
+            }
+            draggedTaskId = null;
+        };
+
+        // --- Lógica do Modal de Tarefas ---
+        let currentEditingId = null;
+        let tempChecklist = [];
+        let isEditMode = false;
+        let initialTitleState = '';
+        let initialDescState = '';
+        let initialDateState = '';
+        let initialTagState = '';
+
+        window.openTaskModal = function(taskId = null) {
+            currentEditingId = taskId;
+            const modal = document.getElementById('task-modal');
+            const content = document.getElementById('task-modal-content');
+            
+            const headerTitle = document.getElementById('modal-header-title');
+            const titleView = document.getElementById('modal-title-view');
+            const titleInput = document.getElementById('modal-task-title');
+            
+            const descView = document.getElementById('modal-desc-view');
+            const descInput = document.getElementById('modal-task-desc');
+
+            const dateInput = document.getElementById('modal-task-date');
+            const tagSelect = document.getElementById('modal-task-tag');
+            const actionContainer = document.getElementById('modal-action-btn-container');
+            const aiGenContainer = document.getElementById('ai-generate-container');
+            
+            const checkInput = document.getElementById('modal-task-check-input');
+            const checkDateInput = document.getElementById('modal-task-check-date');
+            checkInput.value = '';
+            checkDateInput.value = '';
+            updateTagDropdowns();
+
+            if (taskId) {
+                const task = tasks.find(t => t.id === taskId);
+                tempChecklist = task.checklist ? JSON.parse(JSON.stringify(task.checklist)) : [];
+                
+                headerTitle.innerText = task.text;
+                titleView.innerText = task.text;
+                titleInput.value = task.text;
+                
+                const descText = task.description || '';
+                descView.innerText = descText;
+                descInput.value = descText;
+
+                dateInput.value = task.dueDate || '';
+                tagSelect.value = task.tag || '';
+
+                initialTitleState = task.text;
+                initialDescState = descText;
+                initialDateState = task.dueDate || '';
+                initialTagState = task.tag || '';
+                
+                isEditMode = false;
+                
+                titleView.classList.remove('hidden');
+                titleInput.classList.add('hidden');
+                
+                descView.classList.remove('hidden');
+                descInput.classList.add('hidden');
+                descInput.classList.remove('border', 'border-white/10', 'bg-black/30');
+
+                aiGenContainer.style.display = 'none';
+                
+                actionContainer.innerHTML = `
+                    <button onclick="window.enableModalEdit()" class="px-5 py-2.5 rounded-xl bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/40 text-sky-100 transition-colors font-medium flex items-center gap-2 text-sm shadow-lg touch-manipulation">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        Editar
+                    </button>
+                `;
+            } else {
+                tempChecklist = [];
+                isEditMode = true;
+                
+                headerTitle.innerText = 'Nova Tarefa';
+                titleView.innerText = '';
+                titleView.classList.add('hidden');
+                titleInput.classList.remove('hidden');
+                titleInput.value = '';
+
+                descView.innerText = '';
+                descView.classList.add('hidden');
+                descInput.classList.remove('hidden');
+                descInput.classList.add('border', 'border-white/10', 'bg-black/30');
+                descInput.value = '';
+
+                dateInput.value = '';
+                tagSelect.value = '';
+
+                initialTitleState = '';
+                initialDescState = '';
+                initialDateState = '';
+                initialTagState = '';
+
+                aiGenContainer.style.display = 'flex';
+                
+                actionContainer.innerHTML = `
+                    <button onclick="window.saveTask()" class="px-5 py-2.5 rounded-xl bg-sky-500/30 hover:bg-sky-500/50 border border-sky-400/40 text-sky-100 transition-colors font-medium text-sm shadow-lg touch-manipulation">Salvar Tarefa</button>
+                `;
+            }
+
+            renderChecklist();
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        };
+
+        window.enableModalEdit = function() {
+            isEditMode = true;
+            const titleView = document.getElementById('modal-title-view');
+            const titleInput = document.getElementById('modal-task-title');
+            const descView = document.getElementById('modal-desc-view');
+            const descInput = document.getElementById('modal-task-desc');
+            const actionContainer = document.getElementById('modal-action-btn-container');
+            const aiGenContainer = document.getElementById('ai-generate-container');
+
+            titleView.classList.add('hidden');
+            titleInput.classList.remove('hidden');
+
+            descView.classList.add('hidden');
+            descInput.classList.remove('hidden');
+            descInput.classList.add('border', 'border-white/10', 'bg-black/30');
+
+            aiGenContainer.style.display = 'flex';
+
+            actionContainer.innerHTML = `
+                <button onclick="window.saveTask()" class="px-5 py-2.5 rounded-xl bg-sky-500/30 hover:bg-sky-500/50 border border-sky-400/40 text-sky-100 transition-colors font-medium text-sm shadow-lg touch-manipulation">Salvar Alterações</button>
+            `;
+        };
+
+        window.handleModalBackdropClick = function(e) {
+            if (e.target.id === 'task-modal') {
+                window.attemptCloseModal();
+            }
+        };
+
+        window.attemptCloseModal = function() {
+            const titleInput = document.getElementById('modal-task-title');
+            const descInput = document.getElementById('modal-task-desc');
+            const dateInput = document.getElementById('modal-task-date');
+            const tagSelect = document.getElementById('modal-task-tag');
+            
+            const currentTitle = titleInput.value.trim();
+            const currentDesc = descInput.value.trim();
+            const currentDate = dateInput.value;
+            const currentTag = tagSelect.value;
+
+            if (!currentEditingId) {
+                if (currentTitle !== '' || currentDesc !== '' || currentDate !== '' || currentTag !== '' || tempChecklist.length > 0) {
+                    if (confirm("Você tem alterações não salvas. Deseja descartar esta nova tarefa?")) {
+                        window.closeTaskModal();
+                    }
+                } else {
+                    window.closeTaskModal();
+                }
+            } else if (isEditMode) {
+                if (currentTitle !== initialTitleState || currentDesc !== initialDescState || currentDate !== initialDateState || currentTag !== initialTagState) {
+                    if (confirm("Existem alterações não salvas no título/descrição. Deseja salvá-las antes de fechar?")) {
+                        window.saveTask();
+                        return;
+                    }
+                }
+                window.closeTaskModal();
+            } else {
+                window.closeTaskModal();
+            }
+        };
+
+        window.closeTaskModal = function() {
+            const modal = document.getElementById('task-modal');
+            const content = document.getElementById('task-modal-content');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }, 200);
+        };
+
+        // --- Configurações & Tags Modal ---
+        window.openSettingsModal = function() {
+            const modal = document.getElementById('settings-modal');
+            renderTagsSettingsList();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeSettingsModal = function() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        };
+
+        window.addNewTag = async function() {
+            const nameInput = document.getElementById('new-tag-name');
+            const colorInput = document.getElementById('new-tag-color');
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+
+            if (!name) {
+                nameInput.focus();
+                return;
+            }
+
+            if (tags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+                alert("Já existe uma tag com este nome.");
+                return;
+            }
+
+            const newTag = { name, color };
+
+            if (isCloudEnabled && userId && tagsCollection) {
+                try {
+                    const tagId = 'tag-' + Date.now();
+                    await setDoc(doc(tagsCollection, tagId), newTag);
+                } catch (e) {
+                    console.error("Erro ao salvar tag na nuvem:", e);
+                }
+            } else {
+                newTag.id = 'tag-' + Date.now();
+                tags.push(newTag);
+                saveLocalFallback();
+            }
+
+            nameInput.value = '';
+            renderTagsSettingsList();
+            updateTagDropdowns();
+        };
+
+        window.deleteTag = async function(tagId, tagName) {
+            if (tags.length <= 1) {
+                alert("Você precisa manter pelo menos uma tag.");
+                return;
+            }
+
+            if (confirm(`Deseja excluir a tag "${tagName}"?`)) {
+                if (isCloudEnabled && userId && tagsCollection) {
+                    try {
+                        await deleteDoc(doc(tagsCollection, tagId));
+                    } catch (e) {
+                        console.error("Erro ao excluir tag:", e);
+                    }
+                } else {
+                    tags = tags.filter(t => t.id !== tagId);
+                    saveLocalFallback();
+                }
+                renderTagsSettingsList();
+                updateTagDropdowns();
+                renderBoard();
+            }
+        };
+
+        function renderTagsSettingsList() {
+            const list = document.getElementById('settings-tags-list');
+            if (!list) return;
+            list.innerHTML = '';
+
+            tags.forEach(tag => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between bg-black/20 rounded-xl px-3 py-2 border border-white/5 gap-2';
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full" style="background-color: ${tag.color}"></span>
+                        <span class="text-sm text-white/90">${tag.name}</span>
+                    </div>
+                    <button onclick="window.deleteTag('${tag.id}', '${tag.name}')" class="text-white/30 hover:text-red-400 transition-colors p-1.5 touch-manipulation" title="Excluir Tag">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        window.exportData = function() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ tasks, tags }, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "backup_afazeres_ferias.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        };
+
+        window.clearCompletedTasks = async function() {
+            if (confirm("Deseja apagar todas as tarefas concluídas da coluna 'Feito'?")) {
+                const completedTasks = tasks.filter(t => t.status === 'done');
+                for (let t of completedTasks) {
+                    if (isCloudEnabled && userId) {
+                        await deleteDoc(doc(tasksCollection, t.id)).catch(err => console.error(err));
+                    }
+                }
+                tasks = tasks.filter(t => t.status !== 'done');
+                saveLocalFallback();
+                renderBoard();
+                window.closeSettingsModal();
+            }
+        };
+
+        // --- Checklist e Salvamento de Tarefa ---
+        window.addChecklistItem = function() {
+            const input = document.getElementById('modal-task-check-input');
+            const dateInput = document.getElementById('modal-task-check-date');
+            const text = input.value.trim();
+            const dueDate = dateInput.value;
+
+            if (text !== "") {
+                tempChecklist.push({ text: text, dueDate: dueDate, completed: false });
+                input.value = '';
+                dateInput.value = '';
+                renderChecklist();
+                syncChecklistToStorage();
+            }
+        };
+
+        window.toggleChecklist = function(index) {
+            tempChecklist[index].completed = !tempChecklist[index].completed;
+            renderChecklist();
+            syncChecklistToStorage();
+        };
+
+        window.removeChecklist = function(index) {
+            tempChecklist.splice(index, 1);
+            renderChecklist();
+            syncChecklistToStorage();
+        };
+
+        function syncChecklistToStorage() {
+            if (!currentEditingId) return;
+            const task = tasks.find(t => t.id === currentEditingId);
+            if (task) {
+                task.checklist = tempChecklist;
+                if (isCloudEnabled && userId) {
+                    updateDoc(doc(tasksCollection, currentEditingId), { checklist: tempChecklist }).catch(err => console.error(err));
+                } else {
+                    saveLocalFallback();
+                }
+                renderBoard();
+            }
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('modal-checklist-container');
+            container.innerHTML = '';
+            
+            tempChecklist.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-black/20 rounded-xl px-3 py-2 border border-white/5 gap-2';
+                
+                const itemDateStr = item.dueDate ? `<span class="text-[10px] text-sky-300/70 font-mono ml-2">📅 ${formatDate(item.dueDate)}</span>` : '';
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 flex-1 overflow-hidden">
+                        <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="window.toggleChecklist(${index})" class="w-4 h-4 accent-sky-500 bg-white/10 border-white/20 rounded cursor-pointer">
+                        <div class="flex flex-col truncate">
+                            <span class="text-sm truncate ${item.completed ? 'line-through text-white/40' : 'text-white/80'}">${item.text}</span>
+                            ${itemDateStr}
+                        </div>
+                    </div>
+                    <button onclick="window.removeChecklist(${index})" class="text-white/30 hover:text-red-400 transition-colors ml-2 p-1.5 touch-manipulation" title="Remover">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.saveTask = async function() {
+            const titleInput = document.getElementById('modal-task-title');
+            const descInput = document.getElementById('modal-task-desc');
+            const dateInput = document.getElementById('modal-task-date');
+            const tagSelect = document.getElementById('modal-task-tag');
+            
+            const text = titleInput.value.trim();
+            if (text === "") {
+                titleInput.focus();
+                return;
+            }
+
+            const taskData = {
+                text: text,
+                description: descInput.value.trim(),
+                dueDate: dateInput.value,
+                tag: tagSelect.value,
+                checklist: tempChecklist
+            };
+
+            if (currentEditingId) {
+                if (isCloudEnabled && userId) {
+                    try {
+                        await updateDoc(doc(tasksCollection, currentEditingId), taskData);
+                    } catch (error) {
+                        console.error("Erro ao atualizar:", error);
+                    }
+                } else {
+                    const task = tasks.find(t => t.id === currentEditingId);
+                    if (task) {
+                        task.text = taskData.text;
+                        task.description = taskData.description;
+                        task.dueDate = taskData.dueDate;
+                        task.tag = taskData.tag;
+                        task.checklist = taskData.checklist;
+                        saveLocalFallback();
+                        renderBoard();
+                    }
+                }
+            } else {
+                const newId = 't-' + Date.now();
+                taskData.status = 'todo';
+                taskData.createdAt = Date.now();
+
+                if (isCloudEnabled && userId) {
+                    try {
+                        await setDoc(doc(tasksCollection, newId), taskData);
+                    } catch (error) {
+                        console.error("Erro ao criar:", error);
+                    }
+                } else {
+                    taskData.id = newId;
+                    tasks.push(taskData);
+                    saveLocalFallback();
+                    renderBoard();
+                }
+            }
+
+            window.closeTaskModal();
+        };
+
+        window.deleteTask = async function(taskId) {
+            if (isCloudEnabled && userId) {
+                try {
+                    await deleteDoc(doc(tasksCollection, taskId));
+                } catch (error) {
+                    console.error("Erro ao excluir:", error);
+                }
+            } else {
+                tasks = tasks.filter(t => t.id !== taskId);
+                saveLocalFallback();
+                renderBoard();
+            }
+        };
+
+        // --- Recursos de Integração com a API Gemini ---
+        window.openAiIdeasModal = function() {
+            const modal = document.getElementById('ai-ideas-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeAiIdeasModal = function() {
+            const modal = document.getElementById('ai-ideas-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        };
+
+        window.fetchAiSuggestions = async function() {
+            const promptInput = document.getElementById('ai-prompt-input');
+            const resultsContainer = document.getElementById('ai-results-container');
+            const suggestBtn = document.getElementById('ai-suggest-btn');
+            const query = promptInput.value.trim();
+
+            if (!query) {
+                promptInput.focus();
+                return;
+            }
+
+            suggestBtn.disabled = true;
+            suggestBtn.innerText = 'Gerando...';
+            resultsContainer.innerHTML = '<div class="text-center py-8 text-purple-300 animate-pulse text-sm">A Inteligência Artificial está organizando suas férias ideais...</div>';
+
+            try {
+                const systemPrompt = "Você é um assistente de planejamento de férias especialista. Retorne um array JSON contendo 4 ideias de tarefas práticas para o usuário, onde cada objeto tem 'title' (título curto) e 'description' (breve descrição detalhada).";
+                const userQuery = `Gere tarefas para: ${query}`;
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "title": { "type": "STRING" },
+                                    "description": { "type": "STRING" }
+                                },
+                                propertyOrdering: ["title", "description"]
+                            }
+                        }
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (jsonText) {
+                    const parsedTasks = JSON.parse(jsonText);
+                    resultsContainer.innerHTML = '';
+                    
+                    parsedTasks.forEach((pt) => {
+                        const itemCard = document.createElement('div');
+                        itemCard.className = 'flex items-center justify-between bg-black/30 p-3.5 rounded-2xl border border-purple-500/20 gap-3';
+                        itemCard.innerHTML = `
+                            <div class="flex flex-col gap-0.5 flex-1">
+                                <span class="text-white text-sm font-medium">${pt.title}</span>
+                                <span class="text-white/60 text-xs">${pt.description}</span>
+                            </div>
+                            <button onclick="window.addAiTaskToBoard('${encodeURIComponent(pt.title)}', '${encodeURIComponent(pt.description)}')" class="px-3 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 border border-purple-400/30 text-purple-200 text-xs font-medium transition-colors whitespace-nowrap touch-manipulation">Adicionar</button>
+                        `;
+                        resultsContainer.appendChild(itemCard);
+                    });
+                } else {
+                    resultsContainer.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Não foi possível gerar sugestões no momento. Tente novamente.</div>';
+                }
+            } catch (err) {
+                console.error("Erro na API Gemini:", err);
+                resultsContainer.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Ocorreu um erro de conexão com a IA.</div>';
+            } finally {
+                suggestBtn.disabled = false;
+                suggestBtn.innerText = 'Sugerir';
+            }
+        };
+
+        window.addAiTaskToBoard = async function(encodedTitle, encodedDesc) {
+            const title = decodeURIComponent(encodedTitle);
+            const description = decodeURIComponent(encodedDesc);
+            
+            const taskData = {
+                text: title,
+                description: description,
+                dueDate: '',
+                tag: '',
+                status: 'todo',
+                checklist: [],
+                createdAt: Date.now()
+            };
+
+            if (isCloudEnabled && userId) {
+                try {
+                    const newId = 't-' + Date.now() + Math.floor(Math.random()*1000);
+                    await setDoc(doc(tasksCollection, newId), taskData);
+                } catch (error) {
+                    console.error("Erro ao adicionar tarefa sugerida:", error);
+                }
+            } else {
+                taskData.id = 't-' + Date.now() + Math.floor(Math.random()*1000);
+                tasks.push(taskData);
+                saveLocalFallback();
+                renderBoard();
+            }
+
+            window.closeAiIdeasModal();
+        };
+
+        window.generateAiChecklist = async function() {
+            const titleInput = document.getElementById('modal-task-title');
+            const titleView = document.getElementById('modal-title-view');
+            const descInput = document.getElementById('modal-task-desc');
+            const aiBtn = document.getElementById('ai-btn-generate');
+            
+            const title = !titleInput.classList.contains('hidden') ? titleInput.value.trim() : titleView.innerText;
+
+            if (!title) return;
+
+            aiBtn.innerText = 'Gerando...';
+            aiBtn.disabled = true;
+
+            try {
+                const systemPrompt = "Você é um assistente de planejamento. Retorne um array JSON contendo strings com 4 etapas curtas e práticas de checklist para realizar esta tarefa.";
+                const userQuery = `Tarefa: ${title} - Detalhes: ${descInput.value.trim()}`;
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: { type: "STRING" }
+                        }
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const steps = JSON.parse(jsonText);
+                    steps.forEach(stepText => {
+                        if (typeof stepText === 'string' && stepText.trim() !== '') {
+                            tempChecklist.push({ text: stepText.trim(), dueDate: '', completed: false });
+                        }
+                    });
+                    renderChecklist();
+                    syncChecklistToStorage();
+                }
+            } catch (err) {
+                console.error("Erro ao gerar checklist com IA:", err);
+            } finally {
+                aiBtn.innerText = 'Gerar Passos';
+                aiBtn.disabled = false;
+            }
+        };
+
+        window.onload = function() {
+            initFirebase();
+            if (!firebaseConfig) {
+                loadLocalFallback();
+            }
+        };
+    </script>
+</body>
+</html>
